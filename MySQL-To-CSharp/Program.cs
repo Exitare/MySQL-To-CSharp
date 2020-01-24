@@ -23,6 +23,7 @@ namespace MySQL_To_CSharp
         public bool GenerateConstructorAndOutput { get; set; }
         public bool GenerateMarkupPages { get; set; }
         public string MarkupDatabaseNameReplacement { get; set; }
+        public string Namespace { get; set; }
     }
 
     public class Column
@@ -49,19 +50,57 @@ namespace MySQL_To_CSharp
         {
             return str.First().ToString().ToUpper() + str.Substring(1);
         }
+
+        public static string CSharpClassNamingConvention(this string str)
+        {
+            string[] subs = str.Split('_');
+            str = "";
+            string first = subs.First();
+            foreach (string substring in subs)
+            {
+
+                if (substring.Equals(first))
+                {
+                    str = substring.FirstCharUpper();
+                }
+                else
+                {
+                    str = str + "_" + substring.FirstCharUpper();
+                }
+
+            }
+            return str;
+        }
     }
 
     class Program
     {
-        private static void DbToClasses(string dbName, Dictionary<string, List<Column>> db, bool generateConstructorAndOutput)
+        private static void DbToClasses(string dbName, Dictionary<string, List<Column>> db, bool generateConstructorAndOutput, ApplicationArguments args)
         {
             if (!Directory.Exists(dbName))
                 Directory.CreateDirectory(dbName);
 
             var sb = new StringBuilder();
+            Console.WriteLine(args.Namespace);
             foreach (var table in db)
             {
-                sb.AppendLine($"public class {table.Key}");
+                // Using statements
+                if(args.GenerateConstructorAndOutput)
+                {
+                    sb.AppendLine("using System;");
+                    sb.AppendLine("using MySql.Data.MySqlClient");
+                    sb.AppendLine("");
+                }
+
+
+
+                if (args.Namespace != null)
+                {
+                    sb.AppendLine($"namespace {args.Namespace}");
+                    sb.AppendLine("{");
+                }
+
+                sb.AppendLine($"public class {table.Key.CSharpClassNamingConvention()}");
                 sb.AppendLine("{");
 
                 // properties
@@ -70,8 +109,14 @@ namespace MySQL_To_CSharp
 
                 if (generateConstructorAndOutput)
                 {
-                    // constructor
-                    sb.AppendLine($"{Environment.NewLine}public {table.Key}(MySqlDataReader reader)");
+                    // Empty constructor for EF Core
+                    sb.AppendLine($"{Environment.NewLine}public {table.Key.FirstCharUpper()}()");
+                    sb.AppendLine("{");
+                    sb.AppendLine("");
+                    sb.AppendLine("}");
+
+                    // SQL constructor
+                    sb.AppendLine($"{Environment.NewLine}public {table.Key.FirstCharUpper()}(MySqlDataReader reader)");
                     sb.AppendLine("{");
                     foreach (var column in table.Value)
                     {
@@ -111,6 +156,10 @@ namespace MySQL_To_CSharp
 
                 // class closing
                 sb.AppendLine("}");
+
+                // Namespace closing
+                if (args.Namespace != null)
+                    sb.AppendLine("}");
 
                 var sw = new StreamWriter($"{dbName}/{table.Key}.cs", false);
                 sw.Write(sb.ToString());
@@ -176,6 +225,7 @@ namespace MySQL_To_CSharp
             parser.Setup(arg => arg.Password).As('p', "password").SetDefault(String.Empty).WithDescription("(optional) Password, will use empty password if not specified");
             parser.Setup(arg => arg.Database).As('d', "database").Required().WithDescription("Database name");
             parser.Setup(arg => arg.Table).As('t', "table").SetDefault(String.Empty).WithDescription("(optional) Table name, will generate entire database if not specified");
+            parser.Setup(arg => arg.Namespace).As('s', "namespace").SetDefault(String.Empty).WithDescription("(optional) Namespace name, will add a namespace to the cs file.");
             parser.Setup(arg => arg.GenerateConstructorAndOutput).As('g', "generateconstructorandoutput")
                 .SetDefault(false).WithDescription("(optional) Generate a reading constructor and SQL statement output - Activate with -g true");
             parser.Setup(arg => arg.GenerateMarkupPages).As('m', "generatemarkuppages")
@@ -186,6 +236,7 @@ namespace MySQL_To_CSharp
             parser.SetupHelp("?", "help").Callback(text => Console.WriteLine(text));
 
             var result = parser.Parse(args);
+           
             if (!result.HasErrors)
             {
                 var conf = parser.Object as ApplicationArguments;
@@ -197,7 +248,8 @@ namespace MySQL_To_CSharp
 
                 var confString =
                     $"Server={conf.IP};Port={conf.Port};Uid={conf.User};Pwd={conf.Password};Database={conf.Database}";
-                Console.WriteLine(confString);
+                Console.WriteLine("Databaseconnection: {0}", confString);
+                Console.WriteLine("Namespace: {0}", conf.Namespace);
 
                 var database = new Dictionary<string, List<Column>>();
 
@@ -239,7 +291,7 @@ namespace MySQL_To_CSharp
                     con.Close();
                 }
 
-                DbToClasses(conf.Database, database, conf.GenerateConstructorAndOutput);
+                DbToClasses(conf.Database, database, conf.GenerateConstructorAndOutput, conf);
                 if (conf.GenerateMarkupPages)
                     DbToMarkupPage(String.IsNullOrEmpty(conf.MarkupDatabaseNameReplacement) ? conf.Database : conf.MarkupDatabaseNameReplacement, database);
                 Console.WriteLine("Successfully generated C# classes!");
