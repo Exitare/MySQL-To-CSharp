@@ -81,20 +81,16 @@ namespace MySQL_To_CSharp
                 Directory.CreateDirectory(dbName);
 
             var sb = new StringBuilder();
-            Console.WriteLine(args.Namespace);
             foreach (var table in db)
             {
                 // Using statements
-                if(args.GenerateConstructorAndOutput)
-                {
-                    sb.AppendLine("using System;");
+                sb.AppendLine("using System;");
+                if (args.GenerateConstructorAndOutput)
                     sb.AppendLine("using MySql.Data.MySqlClient");
-                    sb.AppendLine("");
-                }
+                sb.AppendLine("");
 
 
-
-                if (args.Namespace != null)
+                if (!string.IsNullOrEmpty(args.Namespace))
                 {
                     sb.AppendLine($"namespace {args.Namespace}");
                     sb.AppendLine("{");
@@ -107,16 +103,18 @@ namespace MySQL_To_CSharp
                 foreach (var column in table.Value)
                     sb.AppendLine(column.ToString());
 
+                // Empty constructor for EF Core
+                sb.AppendLine($"{Environment.NewLine}public {table.Key.CSharpClassNamingConvention()}()");
+                sb.AppendLine("{");
+                sb.AppendLine("");
+                sb.AppendLine("}");
+
                 if (generateConstructorAndOutput)
                 {
-                    // Empty constructor for EF Core
-                    sb.AppendLine($"{Environment.NewLine}public {table.Key.FirstCharUpper()}()");
-                    sb.AppendLine("{");
-                    sb.AppendLine("");
-                    sb.AppendLine("}");
+                  
 
                     // SQL constructor
-                    sb.AppendLine($"{Environment.NewLine}public {table.Key.FirstCharUpper()}(MySqlDataReader reader)");
+                    sb.AppendLine($"{Environment.NewLine}public {table.Key.CSharpClassNamingConvention()}(MySqlDataReader reader)");
                     sb.AppendLine("{");
                     foreach (var column in table.Value)
                     {
@@ -158,10 +156,10 @@ namespace MySQL_To_CSharp
                 sb.AppendLine("}");
 
                 // Namespace closing
-                if (args.Namespace != null)
+                if (!string.IsNullOrEmpty(args.Namespace))
                     sb.AppendLine("}");
 
-                var sw = new StreamWriter($"{dbName}/{table.Key}.cs", false);
+                var sw = new StreamWriter($"{dbName}/{table.Key.CSharpClassNamingConvention()}.cs", false);
                 sw.Write(sb.ToString());
                 sw.Close();
                 sb.Clear();
@@ -248,8 +246,8 @@ namespace MySQL_To_CSharp
 
                 var confString =
                     $"Server={conf.IP};Port={conf.Port};Uid={conf.User};Pwd={conf.Password};Database={conf.Database}";
-                Console.WriteLine("Databaseconnection: {0}", confString);
-                Console.WriteLine("Namespace: {0}", conf.Namespace);
+                Console.WriteLine("Database connection: {0}", confString);
+                Console.WriteLine("Defined Namespace: {0}", conf.Namespace);
 
                 var database = new Dictionary<string, List<Column>>();
 
