@@ -333,7 +333,7 @@ namespace MySQL_To_CSharp
 
                 string confString =
                     $"Server={conf.IP};Port={conf.Port};Uid={conf.User};Pwd={conf.Password};Database={conf.Database}";
-                Console.WriteLine("Database connection: {0}", confString);
+                Console.WriteLine("Database connection: {0}", $"Server={conf.IP};Port={conf.Port};Uid={conf.User};Database={conf.Database}");
                 Console.WriteLine("Defined Namespace: {0}", conf.Namespace);
 
                 Dictionary<string, List<Column>> database = new Dictionary<string, List<Column>>();
