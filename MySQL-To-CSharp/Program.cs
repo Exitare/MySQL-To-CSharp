@@ -86,7 +86,7 @@ namespace MySQL_To_CSharp
                 // Using statements
                 sb.AppendLine("using System;");
                 if (args.GenerateConstructorAndOutput)
-                    sb.AppendLine("using MySql.Data.MySqlClient");
+                    sb.AppendLine("using MySql.Data.MySqlClient;");
                 sb.AppendLine("");
 
 
